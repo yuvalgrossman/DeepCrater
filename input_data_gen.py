@@ -100,6 +100,30 @@ def ReadLROCHeadCombinedCraterCSV(filelroc="catalogues/LROCCraters.csv",
 
     return craters
 
+def ReadRobbinsCraterCSV(filename="catalogues/RobbinsLunarCraters.csv", sortlat=True):
+    """Reads Robbins 2018 <1 km and >1 km diameter crater catalogue.
+
+    Parameters
+    ----------
+    filename : str, optional
+        Filepath and name of the catalog csv file.  Defaults to the one in
+        the current folder.
+    sortlat : bool, optional
+        If `True` (default), order catalogue by latitude.
+
+    Returns
+    -------
+    craters : pandas.DataFrame
+        Craters data frame.
+    """
+    craters = pd.read_csv(filename, header=0,
+                          names=['Lat', 'Long', 'Diameter (km)'])[['Long', 'Lat', 'Diameter (km)']]
+    if sortlat:
+        craters.sort_values(by='Lat', inplace=True)
+        craters.reset_index(inplace=True, drop=True)
+
+    return craters
+
 ########## Warp Images and CSVs ##########
 
 def regrid_shape_aspect(regrid_shape, target_extent):
