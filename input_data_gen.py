@@ -732,6 +732,31 @@ def InitialImageCut(img, cdim, newcdim):
 
     return img
 
+# PIL Conversion function: 
+def convert16to8bit_PIL(img):
+    """Transform PIL image of 16-bit to 8-bit"""
+    img16=np.asarray(img)
+    img16vec=np.concatenate(img16)
+
+    #transformation: 
+    min_val = np.min(img16vec)
+    dif = (np.max(img16vec)-min_val)
+    img8 = np.uint8((img16-min_val)/dif*256)
+
+    return Image.fromarray(img8)
+
+# np.array Conversion function: 
+def convert16to8bit_array(img16):
+    """Optimized transformation of 16-bit np.array to 8-bit"""
+    img16vec=np.concatenate(img16)
+
+    #transformation: 
+    min_val = np.min(img16vec)
+    dif = (np.max(img16vec)-min_val)
+    img8 = np.uint8((img16-min_val)/dif*256)
+
+    return img8
+
 
 def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
                rawlen_dist='log', ilen=256, cdim=[-180., 180., -60., 60.],
@@ -900,6 +925,10 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
         mask = make_mask(ctr_xy, tgt, binary=binary, rings=rings,
                          ringwidth=ringwidth, truncate=truncate)
 
+        #ADDED: 
+        # Transformation from 16-bit to 8-bit
+        imgo_arr = convert16to8bit_array(imgo_arr)
+        
         # Output everything to file.
         imgs_h5_inputs[i, ...] = imgo_arr
         imgs_h5_tgts[i, ...] = mask
