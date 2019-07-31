@@ -762,7 +762,7 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
                rawlen_dist='log', ilen=256, cdim=[-180., 180., -60., 60.],
                arad=1737.4, minpix=0, tglen=256, binary=True, rings=True,
                ringwidth=1, truncate=True, amt=100, istart=0, seed=None,
-               verbose=False):
+               verbose=False, compress16bit=False):
     """Generates random dataset from a global DEM and crater catalogue.
 
     The function randomly samples small images from a global digital elevation
@@ -822,7 +822,7 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
 
     # just in case we ever make this user-selectable...
     origin = "upper"
-
+    
     # Seed random number generator.
     np.random.seed(seed)
 
@@ -897,6 +897,11 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
 
         # Downsample image.
         im = im.resize([ilen, ilen], resample=Image.NEAREST)
+        
+        #ADDED: 
+        # Transformation from 16-bit to 8-bit
+        if compress16bit:
+            im = convert16to8bit_PIL(im)
 
         # Remove all craters that are too small to be seen in image.
         ctr_sub = ResampleCraters(craters, llbd, im.size[1], arad=arad,
@@ -925,10 +930,6 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
         mask = make_mask(ctr_xy, tgt, binary=binary, rings=rings,
                          ringwidth=ringwidth, truncate=truncate)
 
-        #ADDED: 
-        # Transformation from 16-bit to 8-bit
-        imgo_arr = convert16to8bit_array(imgo_arr)
-        
         # Output everything to file.
         imgs_h5_inputs[i, ...] = imgo_arr
         imgs_h5_tgts[i, ...] = mask
