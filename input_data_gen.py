@@ -100,6 +100,30 @@ def ReadLROCHeadCombinedCraterCSV(filelroc="catalogues/LROCCraters.csv",
 
     return craters
 
+def ReadRobbinsCraterCSV(filename="catalogues/RobbinsLunarCraters.csv", sortlat=True):
+    """Reads Robbins 2018 <1 km and >1 km diameter crater catalogue.
+
+    Parameters
+    ----------
+    filename : str, optional
+        Filepath and name of the catalog csv file.  Defaults to the one in
+        the current folder.
+    sortlat : bool, optional
+        If `True` (default), order catalogue by latitude.
+
+    Returns
+    -------
+    craters : pandas.DataFrame
+        Craters data frame.
+    """
+    craters = pd.read_csv(filename, header=0,
+                          names=['Lat', 'Long', 'Diameter (km)'])[['Long', 'Lat', 'Diameter (km)']]
+    if sortlat:
+        craters.sort_values(by='Lat', inplace=True)
+        craters.reset_index(inplace=True, drop=True)
+
+    return craters
+
 ########## Warp Images and CSVs ##########
 
 def regrid_shape_aspect(regrid_shape, target_extent):
@@ -708,12 +732,37 @@ def InitialImageCut(img, cdim, newcdim):
 
     return img
 
+# PIL Conversion function: 
+def convert16to8bit_PIL(img):
+    """Transform PIL image of 16-bit to 8-bit"""
+    img16=np.asarray(img)
+    img16vec=np.concatenate(img16)
+
+    #transformation: 
+    min_val = np.min(img16vec)
+    dif = (np.max(img16vec)-min_val)
+    img8 = np.uint8((img16-min_val)/dif*256)
+
+    return Image.fromarray(img8)
+
+# np.array Conversion function: 
+def convert16to8bit_array(img16):
+    """Optimized transformation of 16-bit np.array to 8-bit"""
+    img16vec=np.concatenate(img16)
+
+    #transformation: 
+    min_val = np.min(img16vec)
+    dif = (np.max(img16vec)-min_val)
+    img8 = np.uint8((img16-min_val)/dif*256)
+
+    return img8
+
 
 def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
                rawlen_dist='log', ilen=256, cdim=[-180., 180., -60., 60.],
                arad=1737.4, minpix=0, tglen=256, binary=True, rings=True,
                ringwidth=1, truncate=True, amt=100, istart=0, seed=None,
-               verbose=False):
+               verbose=False, compress16bit=False):
     """Generates random dataset from a global DEM and crater catalogue.
 
     The function randomly samples small images from a global digital elevation
@@ -773,7 +822,7 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
 
     # just in case we ever make this user-selectable...
     origin = "upper"
-
+    
     # Seed random number generator.
     np.random.seed(seed)
 
@@ -848,6 +897,11 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
 
         # Downsample image.
         im = im.resize([ilen, ilen], resample=Image.NEAREST)
+        
+        #ADDED: 
+        # Transformation from 16-bit to 8-bit
+        if compress16bit:
+            im = convert16to8bit_PIL(im)
 
         # Remove all craters that are too small to be seen in image.
         ctr_sub = ResampleCraters(craters, llbd, im.size[1], arad=arad,
