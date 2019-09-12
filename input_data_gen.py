@@ -745,6 +745,24 @@ def convert16to8bit_PIL(img):
 
     return Image.fromarray(img8)
 
+def convert32to8bit_PIL(img):
+    """Transform PIL image of 32-bit to 8-bit"""
+    img32=np.asarray(img)
+    img32vec=np.concatenate(img32)
+    
+    img32 = np.asarray(img) # convert to np 2-d array
+    s=img32.shape
+    img32vec = np.concatenate(img32) # convert to np 1-d array
+    img32vec[(img32vec<-1e38)] = np.max(img32vec)+4 # replace missing data with a distinct value, which will be transformed to 0
+    img32 = np.reshape(img32vec,s) # convert to np 2-d array
+
+    #transformation: 
+    min_val = np.min(img32vec)
+    dif = (np.max(img32vec)-min_val)
+    img8 = np.uint8((img32-min_val)/dif*256)
+
+    return Image.fromarray(img8)
+
 # np.array Conversion function: 
 def convert16to8bit_array(img16):
     """Optimized transformation of 16-bit np.array to 8-bit"""
@@ -762,7 +780,7 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
                rawlen_dist='log', ilen=256, cdim=[-180., 180., -60., 60.],
                arad=1737.4, minpix=0, tglen=256, binary=True, rings=True,
                ringwidth=1, truncate=True, amt=100, istart=0, seed=None,
-               verbose=False, compress16bit=False):
+               verbose=False, compress16bit=False, compress32bit=False):
     """Generates random dataset from a global DEM and crater catalogue.
 
     The function randomly samples small images from a global digital elevation
@@ -818,6 +836,13 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
         np.random.seed input (for testing purposes).
     verbose : bool
         If True, prints out number of image being generated.
+    ADDITIONS: 
+    compress16bit: bool
+        Determines weather to convert each frame to 8-bit. 
+        If you use original SLDEM with 16-bit you should enter True.
+    compress32bit: bool
+        Determines weather to convert each frame to 8-bit. 
+        If you use original LROC DEM with 32-bit you should enter True.
     """
 
     # just in case we ever make this user-selectable...
@@ -902,6 +927,9 @@ def GenDataset(img, craters, outhead, rawlen_range=[1000, 2000],
         # Transformation from 16-bit to 8-bit
         if compress16bit:
             im = convert16to8bit_PIL(im)
+        # Transformation from 32-bit to 8-bit
+        if compress32bit:
+            im = convert32to8bit_PIL(im)
 
         # Remove all craters that are too small to be seen in image.
         ctr_sub = ResampleCraters(craters, llbd, im.size[1], arad=arad,
